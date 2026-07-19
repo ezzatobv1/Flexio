@@ -138,8 +138,8 @@
    CONFIGURATIE — vul hier je eigen Supabase-gegevens in.
    Te vinden in je Supabase-project onder Settings > API.
    ============================================================ */
-const SUPABASE_URL = https://zvajlbpfrslvwtumnmof.supabase.co/rest/v1/;
-const SUPABASE_ANON_KEY = sb_publishable_HVplXDvE5xKm5HPXmLcG1A_AeX2ovUl;
+const SUPABASE_URL = "https://zvajlbpfrslvwtumnmof.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_HVplXDvE5xKm5HPXmLcG1A_AeX2ovUl";
 
 const isDemoModus = SUPABASE_URL.startsWith("VUL_HIER") || SUPABASE_ANON_KEY.startsWith("VUL_HIER");
 const supabase = !isDemoModus ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
