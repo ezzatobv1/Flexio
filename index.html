@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ezzato Opdrachtenregister | Opdrachten binnen de publieke sector</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --marine-900:#101A30; --marine-700:#1B2A4A; --marine-500:#2E4A78;
+    --marine-300:#7C93B8; --marine-100:#CFD8E6; --marine-50:#EEF1F6;
+    --amber-600:#B97A1F; --amber-400:#E8A33D; --amber-100:#FBEBD1;
+    --canvas:#F6F5F1; --rood:#B4423C;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; background: var(--canvas); color: var(--marine-900); }
+
+  header { background: var(--marine-700); border-bottom: 1px solid var(--marine-100); }
+  .header-inner { max-width: 1100px; margin: 0 auto; padding: 20px 24px; display: flex; justify-content: space-between; align-items: baseline; }
+  .logo { color: #fff; font-size: 20px; font-weight: 600; letter-spacing: -0.02em; cursor: pointer; }
+  .logo span { color: var(--marine-100); font-weight: 400; font-size: 14px; margin-left: 8px; }
+  nav a, nav button.navlink { color: var(--marine-100); text-decoration: none; font-size: 14px; margin-left: 24px; background: none; border: none; font-family: inherit; cursor: pointer; }
+  nav a:hover, nav button.navlink:hover { color: var(--amber-400); }
+  nav .cta { background: var(--amber-400); color: var(--marine-900); padding: 8px 16px; border-radius: 6px; font-weight: 500; }
+  nav .cta:hover { background: var(--amber-600); color: #fff; }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 48px 24px; }
+  h1 { font-size: 30px; font-weight: 600; letter-spacing: -0.02em; }
+  .subtitle { color: var(--marine-500); margin-top: 8px; max-width: 520px; }
+
+  .layout { display: flex; gap: 40px; margin-top: 40px; align-items: flex-start; }
+  aside { width: 220px; flex-shrink: 0; }
+  aside h2 { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+  aside ul { list-style: none; margin-bottom: 28px; }
+  aside li { margin-bottom: 6px; }
+  aside button { background: none; border: none; font: inherit; font-size: 14px; color: var(--marine-500); cursor: pointer; padding: 0; text-align: left; }
+  aside button:hover { color: var(--marine-900); }
+  aside button.actief { color: var(--marine-900); font-weight: 600; }
+  aside .reset { color: var(--rood); font-size: 13px; margin-top: 4px; }
+
+  .vacatures { flex: 1; display: flex; flex-direction: column; gap: 16px; min-height: 200px; }
+  .kaart { background: #fff; border: 1px solid var(--marine-100); border-radius: 10px; padding: 24px; text-decoration: none; color: inherit; display: block; transition: 0.15s; cursor: pointer; }
+  .kaart:hover { border-color: var(--marine-500); box-shadow: 0 4px 14px rgba(16,26,48,0.08); }
+  .kaart-top { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+  .opdrachtgever { font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--marine-300); }
+  .titel { font-size: 18px; font-weight: 600; margin-top: 4px; }
+  .badge { background: var(--amber-100); color: var(--amber-600); font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 999px; white-space: nowrap; }
+  .badge.concept { background: var(--marine-100); color: var(--marine-500); }
+  .details { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 14px; color: var(--marine-500); }
+  .leeg, .laden { color: var(--marine-500); padding: 24px 0; }
+
+  footer { background: var(--marine-900); color: var(--marine-100); margin-top: 60px; }
+  .footer-inner { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+  footer p.naam { color: #fff; font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+  footer p.beschrijving { max-width: 460px; color: var(--marine-300); font-size: 14px; margin-bottom: 20px; }
+  footer .contact { display: flex; flex-wrap: wrap; gap: 24px; font-size: 14px; }
+  footer a { color: var(--marine-100); text-decoration: none; }
+  footer a:hover { color: var(--amber-400); }
+
+  .overlay { display:none; position: fixed; inset: 0; background: rgba(16,26,48,0.5); z-index: 20; align-items: flex-start; justify-content: center; padding: 60px 20px; overflow-y: auto; }
+  .overlay.open { display: flex; }
+  .overlay-kaart { background: #fff; border-radius: 12px; max-width: 640px; width: 100%; padding: 40px; position: relative; }
+  .sluiten { position: absolute; top: 20px; right: 20px; background: none; border: none; font-size: 20px; cursor: pointer; color: var(--marine-500); }
+  .overlay-kaart .titel { font-size: 26px; margin-top: 8px; }
+  .overlay-kaart .details { border-top: 1px solid var(--marine-100); border-bottom: 1px solid var(--marine-100); padding: 16px 0; margin: 20px 0; }
+  .overlay-kaart .beschrijving { line-height: 1.6; margin-bottom: 24px; white-space: pre-line; }
+  .btn { display: inline-block; background: var(--amber-400); color: var(--marine-900); padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600; border: none; font-size: 15px; cursor: pointer; font-family: inherit; }
+  .btn:hover { background: var(--amber-600); color: #fff; }
+  .btn.secundair { background: var(--marine-100); color: var(--marine-900); }
+  .btn.secundair:hover { background: var(--marine-300); }
+  .btn.gevaar { background: var(--rood); color: #fff; }
+  .btn.gevaar:hover { background: #8f312c; }
+
+  form.beheer { display: flex; flex-direction: column; gap: 14px; max-width: 480px; }
+  form.beheer label { font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block; }
+  form.beheer input, form.beheer select, form.beheer textarea {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--marine-100); border-radius: 6px; font: inherit; font-size: 14px;
+  }
+  form.beheer textarea { min-height: 100px; resize: vertical; }
+  .form-rij { display: flex; gap: 14px; }
+  .form-rij > div { flex: 1; }
+  .melding { padding: 12px 16px; border-radius: 6px; font-size: 14px; margin-bottom: 16px; }
+  .melding.fout { background: #FBE7E5; color: var(--rood); }
+  .melding.succes { background: #E4F3E9; color: #1E7A46; }
+  .beheer-lijst { margin-top: 40px; display: flex; flex-direction: column; gap: 10px; }
+  .beheer-rij { display: flex; justify-content: space-between; align-items: center; background: #fff; border: 1px solid var(--marine-100); border-radius: 8px; padding: 14px 18px; gap: 16px; flex-wrap: wrap; }
+  .beheer-rij .info { font-size: 14px; }
+  .beheer-rij .info .t { font-weight: 600; }
+  .beheer-rij .acties { display: flex; gap: 8px; }
+  .beheer-rij .acties button { font-size: 13px; padding: 6px 12px; }
+  .demo-melding { background: var(--amber-100); color: var(--amber-600); padding: 12px 16px; border-radius: 6px; font-size: 14px; margin-bottom: 28px; }
+
+  @media (max-width: 720px) {
+    .layout { flex-direction: column; }
+    aside { width: 100%; }
+    aside ul { display: flex; flex-wrap: wrap; gap: 12px; }
+    aside li { margin-bottom: 0; }
+    .form-rij { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="logo" onclick="toonOverzicht()">Ezzato <span>Opdrachtenregister</span></div>
+    <nav>
+      <button class="navlink" onclick="toonOverzicht()">Opdrachten</button>
+      <a href="#contact">Contact</a>
+      <button class="navlink cta" onclick="toonBeheer()" id="beheer-knop">Beheer</button>
+    </nav>
+  </div>
+</header>
+
+<main id="hoofdinhoud"></main>
+
+<footer id="contact">
+  <div class="footer-inner">
+    <p class="naam">Ezzato B.V.</p>
+    <p class="beschrijving">Detachering van professionals binnen de publieke sector. Wij verbinden opdrachtgevers en zzp'ers aan uitdagende opdrachten.</p>
+    <div class="contact">
+      <span>Roermond</span>
+      <a href="mailto:info@ezzato.nl">info@ezzato.nl</a>
+      <span>KVK 42008712</span>
+    </div>
+  </div>
+</footer>
+
+<div class="overlay" id="overlay">
+  <div class="overlay-kaart">
+    <button class="sluiten" onclick="sluitDetail()">✕</button>
+    <div id="detail-inhoud"></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   CONFIGURATIE — vul hier je eigen Supabase-gegevens in.
+   Te vinden in je Supabase-project onder Settings > API.
+   ============================================================ */
+const SUPABASE_URL = "VUL_HIER_JE_SUPABASE_URL_IN";
+const SUPABASE_ANON_KEY = "VUL_HIER_JE_SUPABASE_ANON_KEY_IN";
+
+const isDemoModus = SUPABASE_URL.startsWith("VUL_HIER") || SUPABASE_ANON_KEY.startsWith("VUL_HIER");
+const supabase = !isDemoModus ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+const demoVacatures = [
+  { id: "demo-1", titel: "Specialist Inburgering", opdrachtgever: "Gemeente Eindhoven", segment: "Sociale zaken & werkgelegenheid", locatie: "Noord-Brabant", uren_pw: "32-36 uur p/w", tarief: null, startdatum: "2026-07-01", einddatum: "2026-12-31", beschrijving: "Voor Gemeente Eindhoven zoeken wij een ervaren specialist inburgering die statushouders begeleidt richting werk en participatie.", status: "live" },
+  { id: "demo-2", titel: "Business Analist Data & Processen", opdrachtgever: "Provincie Utrecht", segment: "ICT | Data", locatie: "Utrecht", uren_pw: "36 uur p/w", tarief: "Max 95 p/u", startdatum: "2026-08-01", einddatum: "2027-01-31", beschrijving: "Analyseren en optimaliseren van bedrijfsprocessen binnen het datadomein van de provincie.", status: "live" },
+  { id: "demo-3", titel: "Projectondersteuner Ruimtelijke Ontwikkeling", opdrachtgever: "Gemeente Delft", segment: "Ruimtelijke Ontwikkeling | Vastgoed | Milieu", locatie: "Zuid-Holland", uren_pw: "24-32 uur p/w", tarief: null, startdatum: "2026-09-01", einddatum: "2027-03-01", beschrijving: "Ondersteuning bieden aan het projectteam ruimtelijke ontwikkeling bij planning en afstemming.", status: "live" }
+];
+
+const SEGMENTEN = ["ICT | Data","Sociale zaken & werkgelegenheid","Ruimtelijke Ontwikkeling | Vastgoed | Milieu","Bouwkunde | Civiele Techniek","Financiën | Economie","HRM | Personeel & Organisatie"];
+const LOCATIES = ["Noord-Brabant","Utrecht","Zuid-Holland","Noord-Holland","Gelderland","Limburg","Overijssel","Groningen","Friesland","Drenthe","Flevoland","Zeeland"];
+
+let alleVacatures = [];
+let actiefSegment = null;
+let actieveLocatie = null;
+let ingelogd = false;
+let scherm = "overzicht";
+
+function formatDatum(s){ return new Date(s).toLocaleDateString("nl-NL",{day:"2-digit",month:"2-digit",year:"numeric"}); }
+function dagenTotSluiting(einddatum){ const v = new Date(einddatum).getTime() - Date.now(); return Math.max(0, Math.ceil(v/(1000*60*60*24))); }
+
+async function laadVacatures(){
+  if(isDemoModus){ alleVacatures = demoVacatures; return; }
+  const { data, error } = await supabase.from("vacatures").select("*").order("created_at",{ascending:false});
+  if(error){ console.error(error); alleVacatures = []; return; }
+  alleVacatures = data;
+}
+
+async function checkSessie(){
+  if(isDemoModus) return;
+  const { data } = await supabase.auth.getSession();
+  ingelogd = !!data.session;
+}
+
+/* ---------------- OVERZICHT (publiek) ---------------- */
+function renderOverzicht(){
+  scherm = "overzicht";
+  const live = alleVacatures.filter(v => v.status === "live");
+  const gefilterd = live.filter(v =>
+    (!actiefSegment || v.segment === actiefSegment) &&
+    (!actieveLocatie || v.locatie === actieveLocatie)
+  );
+
+  const segmentenInData = [...new Set(live.map(v=>v.segment))];
+  const locatiesInData = [...new Set(live.map(v=>v.locatie))];
+
+  document.getElementById("hoofdinhoud").innerHTML = `
+    ${isDemoModus ? `<div class="demo-melding">Demo-modus: er is nog geen Supabase-project gekoppeld. Vul SUPABASE_URL en SUPABASE_ANON_KEY bovenin het bestand in om zelf vacatures te kunnen beheren.</div>` : ""}
+    <h1>Opdrachten binnen de publieke sector</h1>
+    <p class="subtitle">${gefilterd.length} openstaande opdracht${gefilterd.length!==1?"en":""} bij gemeenten, provincies en rijksoverheid.</p>
+    <div class="layout">
+      <aside>
+        <h2>Segment</h2>
+        <ul>${segmentenInData.map(s=>`<li><button class="${s===actiefSegment?'actief':''}" onclick="filterOp('segment','${s.replace(/'/g,"\\'")}')">${s}</button></li>`).join("")}</ul>
+        <h2>Locatie</h2>
+        <ul>${locatiesInData.map(l=>`<li><button class="${l===actieveLocatie?'actief':''}" onclick="filterOp('locatie','${l.replace(/'/g,"\\'")}')">${l}</button></li>`).join("")}</ul>
+        ${(actiefSegment||actieveLocatie) ? `<button class="reset" onclick="filtersWissen()">Filters wissen</button>` : ""}
+      </aside>
+      <div class="vacatures" id="vacature-lijst">
+        ${gefilterd.length===0 ? `<p class="leeg">Geen opdrachten gevonden met deze filters.</p>` :
+          gefilterd.map(v=>`
+            <a class="kaart" onclick="toonDetail('${v.id}')">
+              <div class="kaart-top">
+                <div>
+                  <div class="opdrachtgever">${v.opdrachtgever}</div>
+                  <div class="titel">${v.titel}</div>
+                </div>
+                <span class="badge">Sluit over ${dagenTotSluiting(v.einddatum)} dagen</span>
+              </div>
+              <div class="details">
+                <span>${v.locatie}</span>
+                <span>${v.uren_pw}</span>
+                ${v.tarief ? `<span>${v.tarief}</span>` : ""}
+                <span>${formatDatum(v.startdatum)} – ${formatDatum(v.einddatum)}</span>
+              </div>
+            </a>
+          `).join("")
+        }
+      </div>
+    </div>
+  `;
+}
+
+function filterOp(type, waarde){
+  if(type==="segment") actiefSegment = (actiefSegment===waarde) ? null : waarde;
+  if(type==="locatie") actieveLocatie = (actieveLocatie===waarde) ? null : waarde;
+  renderOverzicht();
+}
+function filtersWissen(){ actiefSegment=null; actieveLocatie=null; renderOverzicht(); }
+function toonOverzicht(){ sluitDetail(); renderOverzicht(); }
+
+function toonDetail(id){
+  const v = alleVacatures.find(x=>String(x.id)===String(id));
+  if(!v) return;
+  document.getElementById("detail-inhoud").innerHTML = `
+    <div class="opdrachtgever">${v.opdrachtgever}</div>
+    <div class="titel">${v.titel}</div>
+    <div class="details">
+      <span>${v.locatie}</span><span>${v.uren_pw}</span>
+      ${v.tarief ? `<span>${v.tarief}</span>` : ""}
+      <span>${formatDatum(v.startdatum)} – ${formatDatum(v.einddatum)}</span>
+    </div>
+    <p class="beschrijving">${v.beschrijving}</p>
+    <a class="btn" href="mailto:info@ezzato.nl?subject=Sollicitatie: ${encodeURIComponent(v.titel)}">Nu solliciteren</a>
+  `;
+  document.getElementById("overlay").classList.add("open");
+}
+function sluitDetail(){ document.getElementById("overlay").classList.remove("open"); }
+
+/* ---------------- BEHEER ---------------- */
+async function toonBeheer(){
+  scherm = "beheer";
+  if(isDemoModus){
+    document.getElementById("hoofdinhoud").innerHTML = `<div class="demo-melding">Beheer werkt pas zodra je Supabase hebt gekoppeld — vul SUPABASE_URL en SUPABASE_ANON_KEY bovenin het bestand in.</div>`;
+    return;
+  }
+  await checkSessie();
+  if(!ingelogd){ renderInlogscherm(); return; }
+  renderBeheerscherm();
+}
+
+function renderInlogscherm(meldingHtml=""){
+  document.getElementById("hoofdinhoud").innerHTML = `
+    <h1>Inloggen</h1>
+    <p class="subtitle">Log in met je beheerdersaccount om vacatures toe te voegen of te bewerken.</p>
+    <div style="margin-top:32px; max-width:400px;">
+      ${meldingHtml}
+      <form class="beheer" onsubmit="return inloggen(event)">
+        <div>
+          <label>E-mailadres</label>
+          <input type="email" id="login-email" required>
+        </div>
+        <div>
+          <label>Wachtwoord</label>
+          <input type="password" id="login-wachtwoord" required>
+        </div>
+        <button class="btn" type="submit">Inloggen</button>
+      </form>
+    </div>
+  `;
+}
+
+async function inloggen(e){
+  e.preventDefault();
+  const email = document.getElementById("login-email").value;
+  const wachtwoord = document.getElementById("login-wachtwoord").value;
+  const { error } = await supabase.auth.signInWithPassword({ email, password: wachtwoord });
+  if(error){
+    renderInlogscherm(`<div class="melding fout">Inloggen mislukt: ${error.message}</div>`);
+    return false;
+  }
+  ingelogd = true;
+  await laadVacatures();
+  renderBeheerscherm();
+  return false;
+}
+
+async function uitloggen(){
+  await supabase.auth.signOut();
+  ingelogd = false;
+  toonOverzicht();
+}
+
+function renderBeheerscherm(meldingHtml=""){
+  document.getElementById("hoofdinhoud").innerHTML = `
+    <h1>Beheer vacatures</h1>
+    <p class="subtitle">Voeg een nieuwe opdracht toe of pas een bestaande aan. Zet status op "Live" om hem zichtbaar te maken op de website.</p>
+    <button class="btn secundair" style="margin-top:20px;" onclick="uitloggen()">Uitloggen</button>
+
+    <div style="margin-top:32px;">
+      ${meldingHtml}
+      <form class="beheer" id="vacature-form" onsubmit="return vacatureOpslaan(event)">
+        <input type="hidden" id="v-id">
+        <div>
+          <label>Titel</label>
+          <input type="text" id="v-titel" required>
+        </div>
+        <div>
+          <label>Opdrachtgever</label>
+          <input type="text" id="v-opdrachtgever" required>
+        </div>
+        <div class="form-rij">
+          <div>
+            <label>Segment</label>
+            <select id="v-segment" required>${SEGMENTEN.map(s=>`<option value="${s}">${s}</option>`).join("")}</select>
+          </div>
+          <div>
+            <label>Locatie</label>
+            <select id="v-locatie" required>${LOCATIES.map(l=>`<option value="${l}">${l}</option>`).join("")}</select>
+          </div>
+        </div>
+        <div class="form-rij">
+          <div>
+            <label>Uren per week</label>
+            <input type="text" id="v-uren" placeholder="bv. 32-36 uur p/w" required>
+          </div>
+          <div>
+            <label>Tarief (optioneel)</label>
+            <input type="text" id="v-tarief" placeholder="bv. Max 95 p/u">
+          </div>
+        </div>
+        <div class="form-rij">
+          <div>
+            <label>Startdatum</label>
+            <input type="date" id="v-startdatum" required>
+          </div>
+          <div>
+            <label>Einddatum / sluitingsdatum</label>
+            <input type="date" id="v-einddatum" required>
+          </div>
+        </div>
+        <div>
+          <label>Beschrijving</label>
+          <textarea id="v-beschrijving" required></textarea>
+        </div>
+        <div>
+          <label>Status</label>
+          <select id="v-status">
+            <option value="concept">Concept (nog niet zichtbaar)</option>
+            <option value="live">Live (zichtbaar op de website)</option>
+          </select>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn" type="submit">Opslaan</button>
+          <button class="btn secundair" type="button" onclick="formLeegmaken()">Nieuw formulier</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="beheer-lijst" id="beheer-lijst"></div>
+  `;
+  renderBeheerLijst();
+}
+
+function renderBeheerLijst(){
+  const container = document.getElementById("beheer-lijst");
+  if(alleVacatures.length===0){ container.innerHTML = `<p class="leeg">Nog geen vacatures toegevoegd.</p>`; return; }
+  container.innerHTML = alleVacatures.map(v=>`
+    <div class="beheer-rij">
+      <div class="info">
+        <span class="t">${v.titel}</span> — ${v.opdrachtgever}
+        <span class="badge ${v.status==='concept'?'concept':''}" style="margin-left:8px;">${v.status==='live'?'Live':'Concept'}</span>
+      </div>
+      <div class="acties">
+        <button class="btn secundair" onclick="vacatureBewerken('${v.id}')">Bewerken</button>
+        <button class="btn gevaar" onclick="vacatureVerwijderen('${v.id}')">Verwijderen</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+function formLeegmaken(){
+  document.getElementById("vacature-form").reset();
+  document.getElementById("v-id").value = "";
+}
+
+function vacatureBewerken(id){
+  const v = alleVacatures.find(x=>String(x.id)===String(id));
+  if(!v) return;
+  document.getElementById("v-id").value = v.id;
+  document.getElementById("v-titel").value = v.titel;
+  document.getElementById("v-opdrachtgever").value = v.opdrachtgever;
+  document.getElementById("v-segment").value = v.segment;
+  document.getElementById("v-locatie").value = v.locatie;
+  document.getElementById("v-uren").value = v.uren_pw;
+  document.getElementById("v-tarief").value = v.tarief || "";
+  document.getElementById("v-startdatum").value = v.startdatum;
+  document.getElementById("v-einddatum").value = v.einddatum;
+  document.getElementById("v-beschrijving").value = v.beschrijving;
+  document.getElementById("v-status").value = v.status;
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+
+async function vacatureOpslaan(e){
+  e.preventDefault();
+  const id = document.getElementById("v-id").value;
+  const record = {
+    titel: document.getElementById("v-titel").value,
+    opdrachtgever: document.getElementById("v-opdrachtgever").value,
+    segment: document.getElementById("v-segment").value,
+    locatie: document.getElementById("v-locatie").value,
+    uren_pw: document.getElementById("v-uren").value,
+    tarief: document.getElementById("v-tarief").value || null,
+    startdatum: document.getElementById("v-startdatum").value,
+    einddatum: document.getElementById("v-einddatum").value,
+    beschrijving: document.getElementById("v-beschrijving").value,
+    status: document.getElementById("v-status").value
+  };
+
+  let error;
+  if(id){
+    ({ error } = await supabase.from("vacatures").update(record).eq("id", id));
+  } else {
+    ({ error } = await supabase.from("vacatures").insert(record));
+  }
+
+  if(error){
+    renderBeheerscherm(`<div class="melding fout">Opslaan mislukt: ${error.message}</div>`);
+    return false;
+  }
+  await laadVacatures();
+  renderBeheerscherm(`<div class="melding succes">Vacature opgeslagen.</div>`);
+  return false;
+}
+
+async function vacatureVerwijderen(id){
+  if(!confirm("Weet je zeker dat je deze vacature wilt verwijderen?")) return;
+  const { error } = await supabase.from("vacatures").delete().eq("id", id);
+  if(error){ alert("Verwijderen mislukt: " + error.message); return; }
+  await laadVacatures();
+  renderBeheerscherm();
+}
+
+/* ---------------- START ---------------- */
+(async function init(){
+  await laadVacatures();
+  await checkSessie();
+  renderOverzicht();
+})();
+</script>
+
+</body>
+</html>
